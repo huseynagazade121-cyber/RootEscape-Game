@@ -1,0 +1,53 @@
+/* Ana dizayn */
+body {
+    margin: 0;
+    padding: 0;
+    background-color: #000;
+    color: #00ff41;
+    font-family: 'Courier New', Courier, monospace;
+    overflow: hidden; /* Ekranın sürüşməsini bağlayır */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+/* Oyun sahəsi (Canvas) */
+canvas {
+    background-color: #050505;
+    border: 2px solid #00ff41;
+    box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+    display: block;
+}
+
+/* Skor və UI elementləri */
+#ui {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    font-size: 24px;
+    font-weight: bold;
+    text-shadow: 2px 2px #000;
+    pointer-events: none;
+}
+
+/* Oyun bitəndə çıxan ekran */
+#overlay {
+    position: absolute;
+    display: none;
+    text-align: center;
+    background: rgba(0, 0, 0, 0.85);
+    padding: 50px;
+    border: 1px solid #00ff41;
+}
+
+button {
+    background: #00ff41;
+    color: #000;
+    border: none;
+    padding: 10px 25px;
+    font-family: inherit;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 20px;
+}
