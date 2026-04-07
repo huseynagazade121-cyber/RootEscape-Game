@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Packet Run | Cyber Mission</title>
+    <style>
+        /* CSS Hissəsi - Oyunun Görünüşü */
+        body { margin: 0; overflow: hidden; background: #0a0a0a; font-family: 'Courier New', Courier, monospace; color: #00ff00; }
+        canvas { display: block; background: #000; border-bottom: 2px solid #00ff00; }
+        #ui { position: absolute; top: 10px; left: 10px; pointer-events: none; }
+        .game-over { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; display: none; }
+        button { background: #00ff00; color: #000; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <div>Score: <span id="score">0</span></div>
+        <div>High Score: <span id="highScore">0</span></div>
+    </div>
+
+    <div class="game-over" id="gameOverUI">
+        <h1>SYSTEM BREACHED!</h1>
+        <p>Paket Firewall-a ilişdi.</p>
+        <button onclick="resetGame()">REBOOT SYSTEM</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        // JS Hissəsi - Oyun Məntiqi
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const highScoreElement = document.getElementById('highScore');
+        const gameOverUI = document.getElementById('gameOverUI');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        // Oyun obyektləri
+        let packet = { x: 50, y: canvas.height / 2, size: 20, velocity: 0, gravity: 0.6, jump: -10 };
+        let pipes = [];
+        let score = 0;
+        let gameRunning = true;
+
+        // SQL əvəzi: Local Storage (Rekordu yadda saxlayır)
+        let highScore = localStorage.getItem('cyberHighScore') || 0;
+        highScoreElement.innerText = highScore;
+
+        function createPipe() {
+            let gap = 200;
+            let minPipeHeight = 50;
+            let height = Math.random() * (canvas.height - gap - (minPipeHeight * 2)) + minPipeHeight;
+            pipes.push({ x: canvas.width, top: height, bottom: canvas.height - height - gap });
+        }
+
+        function draw() {
+            if (!gameRunning) return;
+
+            // Arxa fonu təmizlə
+            ctx.fillStyle = "black";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Paketi çək (Yaşıl kvadrat - Sənin məlumat paketin)
+            ctx.fillStyle = "#00ff00";
+            ctx.fillRect(packet.x, packet.y, packet.size, packet.size);
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = "#00ff00";
+
+            // Fizika
+            packet.velocity += packet.gravity;
+            packet.y += packet.velocity;
+
+            // Maneələri (Firewall) çək və hərəkət etdir
+            ctx.fillStyle = "#ff0000";
+            ctx.shadowColor = "#ff0000";
+            pipes.forEach((pipe, index) => {
+                pipe.x -= 5; // Sürət
+
+                // Üst maneə
+                ctx.fillRect(pipe.x, 0, 50, pipe.top);
+                // Alt maneə
+                ctx.fillRect(pipe.x, canvas.height - pipe.bottom, 50, pipe.bottom);
+
+                // Toqquşma yoxlanışı
+                if (
+                    packet.x < pipe.x + 50 &&
+                    packet.x + packet.size > pipe.x &&
+                    (packet.y < pipe.top || packet.y + packet.size > canvas.height - pipe.bottom)
+                ) {
+                    endGame();
+                }
+
+                // Xal qazanmaq
+                if (pipe.x === 0) {
+                    score++;
+                    scoreElement.innerText = score;
+                }
+
+                // Ekrandan çıxan maneəni sil
+                if (pipe.x < -50) pipes.splice(index, 1);
+            });
+
+            // Yerə və ya tavan daxilində yoxlanış
+            if (packet.y + packet.size > canvas.height || packet.y < 0) endGame();
+
+            requestAnimationFrame(draw);
+        }
+
+        function endGame() {
+            gameRunning = false;
+            gameOverUI.style.display = 'block';
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('cyberHighScore', highScore);
+                highScoreElement.innerText = highScore;
+            }
+        }
+
+        function resetGame() {
+            packet = { x: 50, y: canvas.height / 2, size: 20, velocity: 0, gravity: 0.6, jump: -10 };
+            pipes = [];
+            score = 0;
+            scoreElement.innerText = score;
+            gameRunning = true;
+            gameOverUI.style.display = 'none';
+            draw();
+        }
+
+        // İdarəetmə
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') packet.velocity = packet.jump;
+        });
+        window.addEventListener('touchstart', () => {
+            packet.velocity = packet.jump;
+        });
+
+        // Hər 1.5 saniyədən bir yeni firewall maneəsi yarat
+        setInterval(() => {
+            if (gameRunning) createPipe();
+        }, 1500);
+
+        draw();
+    </script>
+</body>
+</html>
