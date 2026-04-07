@@ -2,147 +2,120 @@
 <html lang="az">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Packet Run | Cyber Mission</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>RootEscape | Cyber Mission</title>
     <style>
-        /* CSS Hissəsi - Oyunun Görünüşü */
-        body { margin: 0; overflow: hidden; background: #0a0a0a; font-family: 'Courier New', Courier, monospace; color: #00ff00; }
-        canvas { display: block; background: #000; border-bottom: 2px solid #00ff00; }
-        #ui { position: absolute; top: 10px; left: 10px; pointer-events: none; }
-        .game-over { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; display: none; }
-        button { background: #00ff00; color: #000; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; }
+        /* CSS HİSSƏSİ */
+        body { margin: 0; padding: 0; background: #000; color: #0f0; font-family: 'Courier New', monospace; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        #game-ui { position: absolute; top: 20px; width: 100%; text-align: center; font-size: 24px; text-shadow: 0 0 10px #0f0; z-index: 10; pointer-events: none; }
+        #start-screen { position: absolute; text-align: center; background: rgba(0, 0, 0, 0.9); padding: 40px; border: 2px solid #0f0; z-index: 20; box-shadow: 0 0 20px #0f0; }
+        canvas { background: #050505; border: 2px solid #0f0; max-width: 100%; max-height: 100vh; }
+        button { background: #0f0; color: #000; border: none; padding: 15px 30px; font-weight: bold; cursor: pointer; font-family: inherit; margin-top: 20px; }
+        button:hover { background: #fff; }
     </style>
 </head>
 <body>
 
-    <div id="ui">
-        <div>Score: <span id="score">0</span></div>
-        <div>High Score: <span id="highScore">0</span></div>
-    </div>
+    <div id="game-ui">SCORE: <span id="score">0</span></div>
 
-    <div class="game-over" id="gameOverUI">
-        <h1>SYSTEM BREACHED!</h1>
-        <p>Paket Firewall-a ilişdi.</p>
-        <button onclick="resetGame()">REBOOT SYSTEM</button>
+    <div id="start-screen">
+        <h1 style="letter-spacing: 5px;">ROOT ESCAPE</h1>
+        <p>FIREWALL-LARDAN KEÇMƏK ÜÇÜN <br><b>SPACE</b> VƏ YA <b>EKRANA TOXUN</b></p>
+        <button onclick="startGame()">SİSTEMİ BAŞLAT</button>
     </div>
 
     <canvas id="gameCanvas"></canvas>
 
     <script>
-        // JS Hissəsi - Oyun Məntiqi
+        /* JAVASCRIPT HİSSƏSİ */
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const scoreElement = document.getElementById('score');
-        const highScoreElement = document.getElementById('highScore');
-        const gameOverUI = document.getElementById('gameOverUI');
+        const startScreen = document.getElementById('start-screen');
 
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        canvas.width = 400;
+        canvas.height = 600;
 
-        // Oyun obyektləri
-        let packet = { x: 50, y: canvas.height / 2, size: 20, velocity: 0, gravity: 0.6, jump: -10 };
-        let pipes = [];
         let score = 0;
-        let gameRunning = true;
+        let isGameRunning = false;
+        let frames = 0;
+        let obstacles = [];
 
-        // SQL əvəzi: Local Storage (Rekordu yadda saxlayır)
-        let highScore = localStorage.getItem('cyberHighScore') || 0;
-        highScoreElement.innerText = highScore;
+        const packet = {
+            x: 50, y: 250, w: 30, h: 30,
+            gravity: 0.4, velocity: 0, jump: -7,
+            draw() {
+                ctx.fillStyle = "#0f0";
+                ctx.fillRect(this.x, this.y, this.w, this.h);
+                ctx.strokeStyle = "#fff";
+                ctx.strokeRect(this.x, this.y, this.w, this.h);
+            },
+            update() {
+                if (!isGameRunning) return;
+                this.velocity += this.gravity;
+                this.y += this.velocity;
+                if (this.y + this.h > canvas.height || this.y < 0) endGame();
+            }
+        };
 
-        function createPipe() {
-            let gap = 200;
-            let minPipeHeight = 50;
-            let height = Math.random() * (canvas.height - gap - (minPipeHeight * 2)) + minPipeHeight;
-            pipes.push({ x: canvas.width, top: height, bottom: canvas.height - height - gap });
-        }
-
-        function draw() {
-            if (!gameRunning) return;
-
-            // Arxa fonu təmizlə
-            ctx.fillStyle = "black";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Paketi çək (Yaşıl kvadrat - Sənin məlumat paketin)
-            ctx.fillStyle = "#00ff00";
-            ctx.fillRect(packet.x, packet.y, packet.size, packet.size);
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = "#00ff00";
-
-            // Fizika
-            packet.velocity += packet.gravity;
-            packet.y += packet.velocity;
-
-            // Maneələri (Firewall) çək və hərəkət etdir
-            ctx.fillStyle = "#ff0000";
-            ctx.shadowColor = "#ff0000";
-            pipes.forEach((pipe, index) => {
-                pipe.x -= 5; // Sürət
-
-                // Üst maneə
-                ctx.fillRect(pipe.x, 0, 50, pipe.top);
-                // Alt maneə
-                ctx.fillRect(pipe.x, canvas.height - pipe.bottom, 50, pipe.bottom);
-
-                // Toqquşma yoxlanışı
-                if (
-                    packet.x < pipe.x + 50 &&
-                    packet.x + packet.size > pipe.x &&
-                    (packet.y < pipe.top || packet.y + packet.size > canvas.height - pipe.bottom)
-                ) {
-                    endGame();
-                }
-
-                // Xal qazanmaq
-                if (pipe.x === 0) {
-                    score++;
-                    scoreElement.innerText = score;
-                }
-
-                // Ekrandan çıxan maneəni sil
-                if (pipe.x < -50) pipes.splice(index, 1);
-            });
-
-            // Yerə və ya tavan daxilində yoxlanış
-            if (packet.y + packet.size > canvas.height || packet.y < 0) endGame();
-
-            requestAnimationFrame(draw);
+        function startGame() {
+            startScreen.style.display = 'none';
+            score = 0;
+            scoreElement.innerText = score;
+            packet.y = 250;
+            packet.velocity = 0;
+            obstacles = [];
+            isGameRunning = true;
+            animate();
         }
 
         function endGame() {
-            gameRunning = false;
-            gameOverUI.style.display = 'block';
-            if (score > highScore) {
-                highScore = score;
-                localStorage.setItem('cyberHighScore', highScore);
-                highScoreElement.innerText = highScore;
-            }
+            isGameRunning = false;
+            startScreen.style.display = 'block';
+            startScreen.querySelector('h1').innerText = "SYSTEM CRASHED!";
+            startScreen.querySelector('p').innerHTML = "Xalın: " + score + "<br>Yenidən cəhd et!";
         }
 
-        function resetGame() {
-            packet = { x: 50, y: canvas.height / 2, size: 20, velocity: 0, gravity: 0.6, jump: -10 };
-            pipes = [];
-            score = 0;
-            scoreElement.innerText = score;
-            gameRunning = true;
-            gameOverUI.style.display = 'none';
-            draw();
+        function createObstacle() {
+            let gap = 170;
+            let minH = 50;
+            let h = Math.random() * (canvas.height - gap - (minH * 2)) + minH;
+            obstacles.push({ x: canvas.width, top: h, bottom: canvas.height - h - gap });
         }
 
-        // İdarəetmə
-        window.addEventListener('keydown', (e) => {
-            if (e.code === 'Space') packet.velocity = packet.jump;
-        });
-        window.addEventListener('touchstart', () => {
-            packet.velocity = packet.jump;
-        });
+        function animate() {
+            if (!isGameRunning) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Hər 1.5 saniyədən bir yeni firewall maneəsi yarat
-        setInterval(() => {
-            if (gameRunning) createPipe();
-        }, 1500);
+            packet.update();
+            packet.draw();
 
-        draw();
+            if (frames % 90 === 0) createObstacle();
+
+            obstacles.forEach((obs, i) => {
+                obs.x -= 3;
+                ctx.fillStyle = "#f00"; // Firewall rəngi
+                ctx.fillRect(obs.x, 0, 50, obs.top);
+                ctx.fillRect(obs.x, canvas.height - obs.bottom, 50, obs.bottom);
+
+                // Toqquşma
+                if (packet.x < obs.x + 50 && packet.x + packet.w > obs.x &&
+                    (packet.y < obs.top || packet.y + packet.h > canvas.height - obs.bottom)) {
+                    endGame();
+                }
+
+                if (obs.x === 50) { score++; scoreElement.innerText = score; }
+                if (obs.x < -50) obstacles.splice(i, 1);
+            });
+
+            frames++;
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('keydown', (e) => { if (e.code === 'Space') packet.velocity = packet.jump; });
+        canvas.addEventListener('touchstart', (e) => { e.preventDefault(); packet.velocity = packet.jump; });
+
+        console.log("Cyber Engine v1.1 - Online");
     </script>
 </body>
 </html>
